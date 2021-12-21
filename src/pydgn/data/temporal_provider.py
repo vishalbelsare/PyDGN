@@ -43,24 +43,37 @@ class MultipleGraphSequenceDataProvider(DataProvider):
         num_sequences = len(samples_list)
         assert num_sequences >= 1
 
-        # we should have a list of T edge index tensors, T=num_timesteps
-        num_timesteps = len(samples_list[0].edge_index)
+        # Search for the maximum sequence length
+        num_timesteps = 0
+        for sample in samples_list:
+            # we should have a list of T edge index tensors, T=num_timesteps
+            timesteps = len(sample.edge_indices)
+            num_timesteps = timesteps if timesteps > num_timesteps else num_timesteps
+        ## num_timesteps = len(samples_list[0].edge_index)
 
         batched_graphs_t = []
         for t in range(num_timesteps):
             graphs_t = []
             for i in range(num_sequences):
-                graph_i = samples_list[i]
-                # x = graph_i.x[t]
-                # edge_index = graph_i.edge_index[t]
-                # edge_attr = graph_i.edge_attr[t]
-                # pos = graph_i.pos[t]
-                # mask = graph_i.mask[t]
-                # graph_it = Data(x=x,edge_index=edge_index,edge_attr=edge_attr,pos=pos,mask=mask)
-                # graph_it = Data(**{k:v[t] for k,v in graph_i.to_dict().items() if type(v) in [torch.tensor, list]})
-                graphs_t.append(graph_i.__get_item__(t))
-            print(graphs_t)
-            exit(0)
+                try:
+                   graph_i = samples_list[i]
+                   # x = graph_i.x[t]
+                   # edge_index = graph_i.edge_index[t]
+                   # edge_attr = graph_i.edge_attr[t]
+                   # pos = graph_i.pos[t]
+                   # mask = graph_i.mask[t]
+                   # graph_it = Data(x=x,edge_index=edge_index,edge_attr=edge_attr,pos=pos,mask=mask)
+                   # graph_it = Data(**{k:v[t] for k,v in graph_i.to_dict().items() if type(v) in [torch.tensor, list]})
+                   graphs_t.append(graph_i.__get_item__(t))
+                except IndexError:
+                   pass
+                   # TODO: do we need to do some sort of padding?
+                   # e.g.
+                   # g = Data(edge_index = torch.empty((2,0), dtype=torch.int64),
+                   #          x = torch.tensor(...),
+                   #          y = torch.tensor(...),
+                   #          mask = torch.tensor(...))
+                   # graphs_t.append(g)
             batched_graphs_t.append(Batch.from_data_list(graphs_t))
         return batched_graphs_t
 

@@ -34,7 +34,7 @@ class ChickenpoxDatasetInterface(TemporalDatasetInterface):
         # in this case data is a Data object containing a snapshot of a single
         # graph sequence.
         # the task is node classification at each time step
-        mask = torch.ones(1,1)  #  time_steps x 1
+        mask = np.ones((1,1))  #  time_steps x 1
         return mask
 
     @property
@@ -55,6 +55,7 @@ class ChickenpoxDatasetInterface(TemporalDatasetInterface):
         # TODO by replacing it with __getitem__
         data = self.dataset.__get_item__(time_index)
         setattr(data, 'mask', self.get_mask(data))
+        data.additional_feature_keys.append('mask') # TODO: check consistency with future releases of pytorch_geometric_temporal
         return data
 
     def __len__(self):
@@ -119,23 +120,31 @@ class TUTemporalDatasetInterface(TemporalDatasetInterface):
             mask = np.zeros((T, pos[sample + 1] - pos[sample]), dtype=bool)
             mask[unmasked, :] = True
 
-            targets = [torch.tensor([y[sample]]) for _ in range(len(edge_index))]
-            features = torch.tensor(x[pos[sample]:pos[sample + 1]].T).unsqueeze(-1)
-            features = [x[t] for t in range(features.shape[0])]
+            #targets = [torch.tensor([y[sample]]) for _ in range(len(edge_index))]
+            #features = torch.tensor(x[pos[sample]:pos[sample + 1]].T).unsqueeze(-1)
+            #features = [x[t] for t in range(features.shape[0])]
+            targets = [np.array([y[sample]]) for _ in range(len(edge_index))]
+            features = x[pos[sample]:pos[sample + 1]].T
+            features = [np.expand_dims(x[t], axis=-1) for t in range(features.shape[0])]
             # We add the y field for stratification purposes when using pydgn standard Splitter
-            data_list.append(DynamicGraphTemporalSignal(edge_indices=edge_index, edge_weights=[None]*len(edge_index), targets=targets, features=features))
+            g = DynamicGraphTemporalSignal(edge_indices=edge_index,
+                                           edge_weights=[None]*len(edge_index),
+                                           targets=targets,
+                                           features=features)
+            data_list.append(g)
         return data_list
 
     def __getitem__(self, idx):
         data = self.dataset[idx]
         setattr(data, 'mask', self.get_mask(data))
+        data.additional_feature_keys.append('mask') # TODO: check consistency with future releases of pytorch_geometric_temporal
         return data
 
     def get_mask(self, data):
         # in this case data is a Data object containing a snapshot of a single
         # graph sequence.
         # the task is node classification at each time step
-        mask = torch.zeros(len(data.features), 1)  #  time_steps x 1
+        mask = np.zeros((len(data.features), 1))  #  time_steps x 1
         mask[-1, 0] = 1  # last time step prediction only
         return mask
 
