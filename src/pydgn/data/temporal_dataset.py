@@ -55,7 +55,6 @@ class ChickenpoxDatasetInterface(TemporalDatasetInterface):
         # TODO by replacing it with __getitem__
         data = self.dataset.__get_item__(time_index)
         setattr(data, 'mask', self.get_mask(data))
-        data.additional_feature_keys.append('mask') # TODO: check consistency with future releases of pytorch_geometric_temporal
         return data
 
     def __len__(self):

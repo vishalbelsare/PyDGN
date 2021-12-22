@@ -36,15 +36,17 @@ class ToyDGNTemporal(nn.Module):
         # snapshot.edge_index: Adj of size (num_nodes_t x num_nodes_t)
         x, edge_index, mask = snapshot.x, snapshot.edge_index, snapshot.mask
 
-        print(mask, mask.shape)
-
-        h_old = torch.zeros(x.shape[0], self.dim_embedding) if prev_state is None else prev_state
-
-        h = self.model(x, edge_index) + self.linear(h_old)
+        h = self.model(x, edge_index, H=prev_state)
         h = torch.relu(h)
 
         # Node predictors assume the embedding is in field "x"
         snapshot.x = h
         out, _ = self.predictor(snapshot)
+
+        # In the case of sequence prediction, out has size == (num_graphs x dim_targets)
+        # and mask is a boolean vector of size == (num_graphs x 1).
+        # Mask is used to explain which prediction must be kept.
+        if mask.shape[0] > 1:
+            out = out[mask]
 
         return out, h
