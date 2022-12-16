@@ -1,12 +1,70 @@
 # Changelog
 
-### TODO (decreasing priority):
+## [1.3.1] Weighted Loss implementation
 
-- Add temporal learning example configs
-- Add unit test
-- Add integration tests
-- Add Multi-GPU processing for single experiment
-- Add dynamic graph learning (with documentation)
+### Added
+
+- You can specify weights for loss in `AdditiveLoss` by passing a dictionary of (loss name, loss weight) entries as an argument.
+  See the documentation of `AdditiveLoss` for more info or the example in `examples/MODEL_CONFIGS/config_SupToyDGN.yml`.
+
+### Fixed
+
+- Better handling of `len()` in `TUDatasetInterface`
+
+### Changed
+
+- Package requirements now specify an upper bound on some packages, including Pytorch and PyG to ensure compatibility. Better be safe than sorry :)
+
+
+## [1.3.0] Support for Pytorch 1.13.0, CUDA 11.6, CUDA 11.7, PyG 2.1.0, Ray 2.1.0, support + minor fixes
+
+### Changed
+
+- Updates to tests to make the fake datasets compatible with PyG 2.1.0
+
+### Fixed
+
+- IDLE ray workers not deallocating GPUs
+
+- Now we sort the data list returned by training engine as if samples were not shuffled.
+
+  Meaning the returned data list is consistent with the original ordering of the dataset.
+
+#### Comments
+
+We tried to provide support for creating an environment with PyG 2.2.0, but importing the library seems to cause
+`segmentation fault` in certain cases. Therefore, we will wait until the issue is fixed and then update the script.
+
+
+## [1.2.6] Minor changes
+
+### Added
+
+- You can now specify a specific subset of gpus to use in the configuration file.
+  
+  Just add the optional field `gpus_subset: 1,2,3` if you want to only use GPUs with index 1,2 and 3.
+
+
+## [1.2.5] Reverting to previous Ray version
+
+### Changed
+
+- Ray 2.0.0 seems to have a problem with killing `IDLE` processes and releasing their resources, i.e. OOM on GPU. 
+  We are reverting to a version that we were using before and did not have this problem.
+
+
+## [1.2.4] Minor fixes + tests for main functionalities
+
+### Fixed
+
+- Minor check in splitter
+- Minor fix in link prediction splitter, one evaluation link was being left out
+- Minor fix in early stopper, `epoch_results` dict was overwritten after applying early stopping. Does not affect performances since the field is re-initialized the subsequent epoch by the training engine.
+- Removed setting random seed for map-style dataset. It was not useful (see Torch doc on reproducibility) and could cause transforms based on random sampling (e.g. negative sampling) to behave always in the same way
+
+### Changed
+
+- Changed semantics of gradient clipper, as there are not many alternatives out there
 
 ## [1.2.3] Added support for single graph tasks
 
@@ -15,7 +73,7 @@ At the moment, the entire graph must fit in CPU/GPU memory. `DataProvider` exten
 ### Added
 
 - New splitter, `SingleGraphSplitter`, which randomly splits nodes in a single graph (with optional stratification)
-- New provider, ``, which adds mask fields to the single DataBatch object (representing the graph)
+- New provider, `SingleGraphDataProvider`, which adds mask fields to the single DataBatch object (representing the graph)
 
 ### Changed
 

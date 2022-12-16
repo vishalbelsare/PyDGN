@@ -6,21 +6,26 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Upload Python Package
+name: Python Package
 
 on:
   release:
     types: [published]
 
 jobs:
+
+  tests-and-coverage:
+    uses: diningphil/PyDGN/.github/workflows/python-test-and-coverage.yml@master
+
   deploy:
+    needs: tests-and-coverage
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: '3.8'
     - name: Install dependencies

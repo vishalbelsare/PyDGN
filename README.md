@@ -3,24 +3,25 @@
 </p>
 
 # PyDGN: a research library for Deep Graph Networks 
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-gray.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Documentation Status](https://readthedocs.org/projects/pydgn/badge/?version=latest)](https://pydgn.readthedocs.io/en/latest/?badge=latest)
-[![Coverage Status](https://coveralls.io/repos/github/diningphil/PyDGN/badge.svg?branch=master)](https://coveralls.io/github/diningphil/PyDGN?branch=master)
+[![Python Package](https://github.com/diningphil/PyDGN/actions/workflows/python-publish.yml/badge.svg)](https://github.com/diningphil/PyDGN/actions/workflows/python-publish.yml)
+[![Downloads](https://static.pepy.tech/personalized-badge/pydgn?period=total&units=international_system&left_color=grey&right_color=blue&left_text=Downloads)](https://pepy.tech/project/pydgn)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Interrogate](https://github.com/diningphil/PyDGN/blob/master/badges/interrogate_badge.svg)](https://interrogate.readthedocs.io/en/latest/)
+[![Coverage](https://github.com/diningphil/PyDGN/blob/master/badges/coverage_badge.svg)]()
+<img src="https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white" width="72">
 
-#### Read the [Documentation](https://pydgn.readthedocs.io/en/latest/index.html)
+## [Documentation](https://pydgn.readthedocs.io/en/latest/index.html)
 
 This is a Python library to easily experiment
 with [Deep Graph Networks](https://www.sciencedirect.com/science/article/pii/S0893608020302197) (DGNs). It provides
 automatic management of data splitting, loading and common experimental settings. It also handles both model
 selection and risk assessment procedures, by trying many different configurations in parallel (CPU or GPU).
 
-## Cite
-If you happen to use or modify this code, **please remember to cite our tutorial paper**:
+## Reference
 
-[Bacciu Davide, Errica Federico, Micheli Alessio, Podda Marco: *A Gentle Introduction to Deep Learning for
-Graphs*](https://www.sciencedirect.com/science/article/pii/S0893608020302197), Neural Networks, 2020.
-DOI: `10.1016/j.neunet.2020.06.006`.
-
-In addition, if you are interested in a rigorous evaluation of Deep Graph Networks, which kick-started this library, check this out:
+If you are interested in a rigorous evaluation of *specific* Deep Graph Networks, which kick-started this library, check this out:
 
 [Errica Federico, Podda Marco, Bacciu Davide, Micheli Alessio: *A Fair Comparison of Graph Neural Networks for Graph
 Classification*](https://openreview.net/pdf?id=HygDF6NFPB). *Proceedings of the 8th International Conference on Learning
@@ -29,21 +30,24 @@ Representations (ICLR 2020).* [Code](https://github.com/diningphil/gnn-compariso
 
 ## Installation:
 
-We assume **git** and **Miniconda/Anaconda** are installed. Then you can use the script below to install `pydgn` in a controlled and separate environment (this is up to you):
+We assume **git** is installed. Optionally, you can use the script below to install `pydgn` in a controlled and separate environment (this is up to you):
 
-    source setup/install.sh [<your_cuda_version>]
-    pip install pydgn
+    source setup/create_environment.sh [<your_cuda_version>]
 
-Where `<your_cuda_version>` is an optional argument that (as of 2/3/22) can be either `cpu`, `cu102` or `cu113` for Pytorch >= 1.10.2
+Where `<your_cuda_version>` is an optional argument that (as of 12/12/22) can be either `cpu`, `cu116` or `cu117` for Pytorch 1.13.0
 If you do not provide a cuda version, the script will default to `cpu`. The script will create a virtual environment
 named `pydgn`, with all the required packages needed to run our code. **Important:** do NOT run this command
 using `bash` instead of `source`!
+
+Alternatively, if Pytorch (<=1.13.0) and Pytorch Geometric (<=2.1.0) are already installed, you can just run
+    
+    pip install pydgn
 
 ## Quickstart:
 
 #### Build dataset and data splits
 
-    pydgn-dataset --config-file examples/DATA_CONFIGS/config_PROTEINS.yml
+    pydgn-dataset --config-file examples/DATA_CONFIGS/config_NCI1.yml
 
 #### Train
 

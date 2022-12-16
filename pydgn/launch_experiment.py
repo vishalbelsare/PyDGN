@@ -1,23 +1,40 @@
+import argparse
 import os
 import sys
+from typing import Optional
 
 import gpustat
-
 import yaml
-import argparse
 
 from pydgn.static import *
 
 
-def set_gpus(num_gpus):
+def set_gpus(num_gpus: int, gpus_subset: Optional[str] = None):
     """
-    Sets the visible GPUS for the experiments according to the availability in terms of memory. Prioritize GPUs with
-    less memory usage. Sets the ``CUDA_DEVICE_ORDER`` env variable to ``PCI_BUS_ID`` and ``CUDA_VISIBLE_DEVICES``
-    to the ordered list of GPU indices.
+    Sets the visible GPUS for the experiments according to the availability
+    in terms of memory. Prioritize GPUs with less memory usage.
+    Sets the ``CUDA_DEVICE_ORDER`` env variable to ``PCI_BUS_ID``
+    and ``CUDA_VISIBLE_DEVICES`` to the ordered list of GPU indices.
 
     Args:
-        num_gpus: maximum number of GPUs to use when launching experiments in parallel
+        num_gpus (int): maximum number of GPUs to use when
+            launching experiments in parallel
+        gpus_subset (str): specifies a subset of GPU indices
+            that the library should use as a string of comma-separated indices.
+            Useful if one wants to specify specific GPUs on which to run
+            the experiments, regardless of memory constraints
     """
+    if (gpus_subset is not None) and (num_gpus > len(gpus_subset)):
+        raise Exception(
+            f"The user asked to use {num_gpus} GPUs but only a valid subset of"
+            f" {len(gpus_subset)} GPUs are provided. "
+            f"Please adjust the {str(MAX_GPUS)} and the "
+            f"{str(GPUS_SUBSET)} parameters in the configuration file."
+        )
+
+    if gpus_subset is not None:
+        gpus_subset = gpus_subset.split(",")
+
     try:
         selected = []
 
@@ -25,10 +42,23 @@ def set_gpus(num_gpus):
 
         for i in range(num_gpus):
 
-            ids_mem = [res for res in map(lambda gpu: (int(gpu.entry['index']),
-                                                       float(gpu.entry['memory.used']) / \
-                                                       float(gpu.entry['memory.total'])),
-                                          stats) if str(res[0]) not in selected]
+            ids_mem = [
+                res
+                for res in map(
+                    lambda gpu: (
+                        int(gpu.entry["index"]),
+                        float(gpu.entry["memory.used"])
+                        / float(gpu.entry["memory.total"]),
+                    ),
+                    stats,
+                )
+                if (str(res[0]) not in selected)
+                and (
+                    str(res[0]) in gpus_subset
+                    if gpus_subset is not None
+                    else True
+                )
+            ]
 
             if len(ids_mem) == 0:
                 # No more gpus available
@@ -39,22 +69,40 @@ def set_gpus(num_gpus):
             # print(f"{i}-th best is {bestGPU} with mem {bestMem}")
             selected.append(str(bestGPU))
 
+        if gpus_subset is not None:
+            print(
+                f"The user specified the following "
+                f"GPUs to use: {gpus_subset}"
+            )
         print("Setting GPUs to: {}".format(",".join(selected)))
-        os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-        os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(selected)
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(selected)
     except BaseException as e:
         print("GPU not available: " + str(e))
 
 
-def evaluation(options):
+def evaluation(options: argparse.Namespace):
+    """
+    Takes the CLI arguments and launches the evaluation procedure.
+    The method takes care of instantiating the Ray process and setting up
+    the amount of resources available. Then it instantiates a
+    :obj:`RiskAssesser` object to carry out the experiments.
+
+    Args:
+        :param options (argparse.Namespace):
+    """
     kwargs = vars(options)
     debug = kwargs[DEBUG]
-    configs_dict = yaml.load(open(kwargs[CONFIG_FILE], "r"), Loader=yaml.FullLoader)
+    configs_dict = yaml.load(
+        open(kwargs[CONFIG_FILE], "r"), Loader=yaml.FullLoader
+    )
 
     # Telegram bot settings
     telegram_config_file = configs_dict.get(TELEGRAM_CONFIG_FILE, None)
     if telegram_config_file is not None:
-        telegram_config = yaml.load(open(telegram_config_file, "r"), Loader=yaml.FullLoader)
+        telegram_config = yaml.load(
+            open(telegram_config_file, "r"), Loader=yaml.FullLoader
+        )
     else:
         telegram_config = None
 
@@ -70,22 +118,32 @@ def evaluation(options):
     else:
         # We will choose the GPU with least ratio of memory usage
         max_gpus = configs_dict[MAX_GPUS]
+        # Optionally, use a specific subset of gpus
+        gpus_subset = configs_dict.get(GPUS_SUBSET, None)
         # Choose which GPUs to use
-        set_gpus(max_gpus)
+        try:
+            set_gpus(max_gpus, gpus_subset)
+        except Exception as e:
+            print("An exception occurred while setting the GPUs:")
+            print(e)
+
         gpus_per_task = configs_dict[GPUS_PER_TASK]
 
-    # we probably don't need this anymore, but keep it commented in case we're wrong
+    # we probably don't need this anymore, but keep it commented in case
     # OMP_NUM_THREADS = 'OMP_NUM_THREADS'
-    # os.environ[OMP_NUM_THREADS] = "1"  # This is CRUCIAL to avoid bottlenecks when running experiments in parallel. DO NOT REMOVE IT
+    # os.environ[OMP_NUM_THREADS] = "1"  # This is CRUCIAL to avoid
+    # bottlenecks when running experiments in parallel. DO NOT REMOVE IT
 
     #
-    # Once CUDA_VISIBLE_DEVICES has been set, we can start importing all the necessary modules
+    # Once CUDA_VISIBLE_DEVICES has been set, we can start importing
+    # all the necessary modules
     #
     import ray
-    import torch
 
-    # we probably don't need this anymore, but keep it commented in case we're wrong
-    # Needed to avoid thread spawning, conflicts with multi-processing. You may set a number > 1 but take into account the number of processes on the machine
+    # we probably don't need this anymore, but keep it commented in case
+    # Needed to avoid thread spawning, conflicts with multi-processing.
+    # You may set a number > 1 but take into account the
+    # number of processes on the machine
     # torch.set_num_threads(1)
 
     from pydgn.experiment.util import s2c
@@ -94,7 +152,7 @@ def evaluation(options):
     from pydgn.evaluation.random_search import RandomSearch
 
     assert GRID_SEARCH in configs_dict or RANDOM_SEARCH in configs_dict
-    search_class = (Grid if GRID_SEARCH in configs_dict else RandomSearch)
+    search_class = Grid if GRID_SEARCH in configs_dict else RandomSearch
     search = search_class(configs_dict)
 
     if use_cuda:
@@ -106,7 +164,7 @@ def evaluation(options):
 
     # Set the random seed
     seed = search.seed if search.seed is not None else 42
-    print(f'Base seed set to {seed}.')
+    print(f"Base seed set to {seed}.")
     experiment = search.experiment
     experiment_class = s2c(experiment)
     exp_path = os.path.join(configs_dict[RESULT_FOLDER], f"{search.exp_name}")
@@ -114,9 +172,12 @@ def evaluation(options):
     os.environ[PYDGN_RAY_NUM_GPUS_PER_TASK] = str(float(gpus_per_task))
 
     # You can make PyDGN work on a cluster of machines!
-    if os.environ.get('ip_head') is not None:
-        assert os.environ.get('redis_password') is not None
-        ray.init(address=os.environ.get('ip_head'), _redis_password=os.environ.get('redis_password'))
+    if os.environ.get("ip_head") is not None:
+        assert os.environ.get("redis_password") is not None
+        ray.init(
+            address=os.environ.get("ip_head"),
+            _redis_password=os.environ.get("redis_password"),
+        )
         print("Connected to Ray cluster.")
         print(f"Available nodes: {ray.nodes()}")
     # Or you can work on your single server
@@ -128,32 +189,51 @@ def evaluation(options):
 
     splitter = Splitter.load(data_splits_file)
     inner_folds, outer_folds = splitter.n_inner_folds, splitter.n_outer_folds
-    print(f'Data splits loaded, outer folds are {outer_folds} and inner folds are {inner_folds}')
+    print(
+        f"Data splits loaded, outer folds are {outer_folds} "
+        f"and inner folds are {inner_folds}"
+    )
 
     # WARNING: leave the import here, it reads env variables set before
     from pydgn.evaluation.evaluator import RiskAssesser
-    risk_assesser = RiskAssesser(outer_folds,
-                                 inner_folds,
-                                 experiment_class,
-                                 exp_path,
-                                 data_splits_file,
-                                 search,
-                                 final_training_runs=configs_dict[FINAL_TRAINING_RUNS],
-                                 higher_is_better=search.higher_results_are_better,
-                                 gpus_per_task=gpus_per_task,
-                                 base_seed=seed)
+
+    risk_assesser = RiskAssesser(
+        outer_folds,
+        inner_folds,
+        experiment_class,
+        exp_path,
+        data_splits_file,
+        search,
+        final_training_runs=configs_dict[FINAL_TRAINING_RUNS],
+        higher_is_better=search.higher_results_are_better,
+        gpus_per_task=gpus_per_task,
+        base_seed=seed,
+    )
 
     risk_assesser.risk_assessment(debug=debug)
+    ray.shutdown()
 
 
-def get_args():
+def get_args() -> argparse.Namespace:
+    """
+    Processes CLI arguments (i.e., the config file location and debug option)
+    and returns a namespace.
+
+    Returns:
+        a namespace with the arguments
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(CONFIG_FILE_CLI_ARGUMENT, dest=CONFIG_FILE)
-    parser.add_argument(DEBUG_CLI_ARGUMENT, action="store_true", dest=DEBUG, default=False)
+    parser.add_argument(
+        DEBUG_CLI_ARGUMENT, action="store_true", dest=DEBUG, default=False
+    )
     return parser.parse_args()
 
 
 def main():
+    """
+    Launches the experiment.
+    """
     # Necessary to locate dotted paths in projects that use PyDGN
     sys.path.append(os.getcwd())
 
@@ -162,3 +242,7 @@ def main():
         evaluation(options)
     except Exception as e:
         raise e
+
+
+if __name__ == "__main__":
+    main()

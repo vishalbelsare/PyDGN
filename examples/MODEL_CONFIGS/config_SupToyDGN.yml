@@ -5,15 +5,16 @@
 # Dataset and Splits
 data_root: DATA
 dataset_class: pydgn.data.dataset.TUDatasetInterface
-dataset_name:  PROTEINS
-data_splits_file:  examples/DATA_SPLITS/CHEMICAL/PROTEINS/PROTEINS_outer10_inner1.splits
+dataset_name:  NCI1
+data_splits_file:  examples/DATA_SPLITS/CHEMICAL/NCI1/NCI1_outer10_inner1.splits
 
 
 # Hardware
 device:  cpu
-max_cpus:  4
-max_gpus: 0
+max_cpus:  16
+max_gpus: 1
 gpus_per_task:  1
+# gpus_subset: 0,1,2,3,4,5,6,7,8
 
 
 # Data Loading
@@ -43,7 +44,7 @@ grid:
     model: pydgn.model.dgn.toy_dgn.ToyDGN
     checkpoint: True
     shuffle: True
-    batch_size: 32
+    batch_size: 512
     epochs: 3
 
     # Model specific arguments #
@@ -75,6 +76,13 @@ grid:
         args:
           loss_1: pydgn.training.callback.metric.MulticlassClassification
           loss_2: pydgn.training.callback.metric.MulticlassClassification
+          losses_weights:
+            Multiclass Classification:
+              - 1.
+              - 0.
+          accumulate_over_epoch:
+            - True
+            - False
 
 
     # Score metric (with an example of Multi Score)

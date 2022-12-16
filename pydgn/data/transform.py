@@ -14,13 +14,20 @@ class ConstantIfEmpty:
         self.value = value
 
     def __call__(self, data):
+        """
+        Transforms the data object by adding a constant value as the sole node
+        feature (if none are present).
+        """
         if data.x is None:
             c = torch.full((data.num_nodes, 1), self.value, dtype=torch.float)
             data.x = c
         return data
 
     def __repr__(self):
-        return '{}(value={})'.format(self.__class__.__name__, self.value)
+        """
+        String representation of the transform.
+        """
+        return "{}(value={})".format(self.__class__.__name__, self.value)
 
 
 class ConstantEdgeIfEmpty:
@@ -35,13 +42,22 @@ class ConstantEdgeIfEmpty:
         self.value = value
 
     def __call__(self, data):
+        """
+        Transforms the data object by adding a constant value as the sole edge
+        feature (if none are present).
+        """
         if data.edge_attr is None:
-            c = torch.full((data.edge_index.shape[1], 1), self.value, dtype=torch.float)
+            c = torch.full(
+                (data.edge_index.shape[1], 1), self.value, dtype=torch.float
+            )
             data.edge_attr = c
         return data
 
     def __repr__(self):
-        return '{}(value={})'.format(self.__class__.__name__, self.value)
+        """
+        String representation of the transform.
+        """
+        return "{}(value={})".format(self.__class__.__name__, self.value)
 
 
 class Degree:
@@ -49,15 +65,22 @@ class Degree:
     Adds the node degree to the node features.
 
     Args:
-        in_degree (bool): If set to :obj:`True`, will compute the in-degree of nodes instead of the out-degree.
+        in_degree (bool): If set to :obj:`True`, will compute the in-degree of
+            nodes instead of the out-degree.
         Not relevant if the graph is undirected (default: :obj:`False`).
-        cat (bool): Concat node degrees to node features instead of replacing them. (default: :obj:`True`)
+        cat (bool): Concat node degrees to node features instead of replacing
+            them. (default: :obj:`True`)
     """
-    def __init__(self, in_degree: bool=False, cat: bool=True):
+
+    def __init__(self, in_degree: bool = False, cat: bool = True):
         self.in_degree = in_degree
         self.cat = cat
 
     def __call__(self, data):
+        """
+        Transforms the data object by adding the in or out-degree of each
+        node as a feature.
+        """
         idx, x = data.edge_index[1 if self.in_degree else 0], data.x
         deg = degree(idx, data.num_nodes, dtype=torch.float).view(-1, 1)
 
@@ -69,4 +92,7 @@ class Degree:
         return data
 
     def __repr__(self):
-        return '{}'.format(self.__class__.__name__)
+        """
+        String representation of the transform.
+        """
+        return "{}".format(self.__class__.__name__)

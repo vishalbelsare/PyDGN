@@ -1,3 +1,5 @@
+from torch.nn.utils import clip_grad_value_
+
 from pydgn.experiment.util import s2c
 from pydgn.training.event.handler import EventHandler
 from pydgn.training.event.state import State
@@ -5,15 +7,25 @@ from pydgn.training.event.state import State
 
 class GradientClipper(EventHandler):
     r"""
-    GradientClipper is the main event handler for gradient clippers. Just pass a PyTorch scheduler together with its
+    GradientClipper is the main event handler for gradient clippers.
+    Just pass a PyTorch scheduler together with its
     arguments in the configuration file.
 
     Args:
-        gradient_clipper_class_name (str): the dotted path to the gradient clipper class name
+        clip_value (float): the gradient will be clipped in
+            [-clip_value, clip_value]
         kwargs (dict): additional arguments
     """
-    def __init__(self, gradient_clipper_class_name: str, **kwargs: dict):
-        self.gradient_clipper = s2c(gradient_clipper_class_name)(**kwargs)
+
+    def __init__(self, clip_value: float, **kwargs: dict):
+        self.clip_value = clip_value
 
     def on_backward(self, state: State):
-        self.gradient_clipper.clip_gradients(state.model.parameters())
+        """
+        Clips the gradients of the model before the weights are updated.
+
+        Args:
+            state (:class:`~training.event.state.State`):
+                object holding training information
+        """
+        clip_grad_value_(state.model.parameters(), clip_value=self.clip_value)
